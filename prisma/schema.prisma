@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String?
+  avatar    String?
+  googleId  String    @unique
+  createdAt DateTime  @default(now())
+
+  // Relations
+  incomes   Income[]
+  expenses  Expense[]
+  savings   Saving[]
+}
+
+model Income {
+  id         String   @id @default(uuid())
+  userId     String
+  month      Int      // 1-12
+  year       Int      // e.g. 2024
+  salary     Float    @default(0)
+  atmBalance Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year]) // User can only have one aggregate income record per month/year
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  userId    String
+  month     Int      // 1-12
+  year      Int      // e.g. 2024
+  name      String
+  amount    Float    @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Saving {
+  id         String   @id @default(uuid())
+  userId     String
+  month      Int      // 1-12
+  year       Int      // e.g. 2024
+  instrument String
+  amount     Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
