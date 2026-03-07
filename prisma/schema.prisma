@@ -22,9 +22,10 @@ model User {
   createdAt DateTime  @default(now())
 
   // Relations
-  incomes   Income[]
-  expenses  Expense[]
-  savings   Saving[]
+  incomes    Income[]
+  expenses   Expense[]
+  savings    Saving[]
+  otherFunds OtherFund[]
 }
 
 model Income {
@@ -59,6 +60,18 @@ model Saving {
   month      Int      // 1-12
   year       Int      // e.g. 2024
   instrument String
+  amount     Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OtherFund {
+  id         String   @id @default(uuid())
+  userId     String
+  month      Int      // 1-12
+  year       Int      // e.g. 2024
+  name       String   // e.g. "Bonus", "Hadiah"
   amount     Float    @default(0)
   createdAt  DateTime @default(now())
 

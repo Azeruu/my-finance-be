@@ -371,21 +371,107 @@ const userId = c.get('userId')
   return c.json({ totalSaving: agg._sum.amount ?? 0 })
 })
 
-// 4. Evaluasi (All Totals)
+// 4. Other Fund (Dana Lainnya)
+app.get('/api/other-fund', authMiddleware, async (c) => {
+const userId = c.get('userId')
+  const { month, year } = c.req.query()
+  if (!month || !year) return c.json({ error: 'Month and year required' }, 400)
+
+  const funds = await prisma.otherFund.findMany({
+    where: { userId, month: parseInt(month), year: parseInt(year) },
+    orderBy: { createdAt: 'desc' }
+  })
+  return c.json(funds)
+})
+
+app.post('/api/other-fund', authMiddleware, async (c) => {
+const userId = c.get('userId')
+  const { month, year, name, amount } = await c.req.json()
+
+  const fund = await prisma.otherFund.create({
+    data: {
+      userId,
+      month: parseInt(month),
+      year: parseInt(year),
+      name,
+      amount: parseFloat(amount)
+    }
+  })
+  return c.json(fund)
+})
+
+app.delete('/api/other-fund/:id', authMiddleware, async (c) => {
+const userId = c.get('userId')
+  const id = c.req.param('id')
+
+  await prisma.otherFund.deleteMany({
+    where: { id, userId }
+  })
+  return c.json({ success: true })
+})
+
+app.get('/api/other-fund/total', authMiddleware, async (c) => {
+const userId = c.get('userId')
+  const agg = await prisma.otherFund.aggregate({
+    where: { userId },
+    _sum: { amount: true }
+  })
+  return c.json({ totalOtherFund: agg._sum.amount ?? 0 })
+})
+
+// 5. Evaluasi (All Totals)
 app.get('/api/evaluation', authMiddleware, async (c) => {
 const userId = c.get('userId')
 
-  const [incomeAgg, expenseAgg, savingAgg] = await Promise.all([
+  const [incomeAgg, expenseAgg, savingAgg, otherFundAgg] = await Promise.all([
     prisma.income.aggregate({ where: { userId }, _sum: { salary: true } }),
     prisma.expense.aggregate({ where: { userId }, _sum: { amount: true } }),
-    prisma.saving.aggregate({ where: { userId }, _sum: { amount: true } })
+    prisma.saving.aggregate({ where: { userId }, _sum: { amount: true } }),
+    prisma.otherFund.aggregate({ where: { userId }, _sum: { amount: true } })
   ])
 
   return c.json({
     totalSalary: incomeAgg._sum.salary ?? 0,
     totalExpense: expenseAgg._sum.amount ?? 0,
-    totalSaving: savingAgg._sum.amount ?? 0
+    totalSaving: savingAgg._sum.amount ?? 0,
+    totalOtherFund: otherFundAgg._sum.amount ?? 0
   })
+})
+
+// 6. Chart Data Preparation
+app.get('/api/evaluation/chart', authMiddleware, async (c) => {
+  const userId = c.get('userId')
+
+  // We fetch last 6 or 12 months, or just fetch all logic for the current year
+  // Let's just group everything by month for the current year or provide a generic monthly aggregate
+  
+  // Since we want dynamic ranges, let's accept year as query:
+  const { year } = c.req.query()
+  if (!year) return c.json({ error: 'Year required' }, 400)
+
+  const parsedYear = parseInt(year)
+
+  // We will build an array of 12 month items for the chart
+  const data = []
+  
+  for (let m = 1; m <= 12; m++) {
+    const [income, expenseAgg, savingAgg, otherFundAgg] = await Promise.all([
+      prisma.income.findUnique({ where: { userId_month_year: { userId, month: m, year: parsedYear } } }),
+      prisma.expense.aggregate({ where: { userId, month: m, year: parsedYear }, _sum: { amount: true } }),
+      prisma.saving.aggregate({ where: { userId, month: m, year: parsedYear }, _sum: { amount: true } }),
+      prisma.otherFund.aggregate({ where: { userId, month: m, year: parsedYear }, _sum: { amount: true } })
+    ])
+
+    data.push({
+      month: m,
+      pendapatan: (income?.salary ?? 0),
+      pengeluaran: expenseAgg._sum.amount ?? 0,
+      tabungan: savingAgg._sum.amount ?? 0,
+      danaLainnya: otherFundAgg._sum.amount ?? 0
+    })
+  }
+
+  return c.json(data)
 })
 
 const port = parseInt(process.env.PORT || '3000')
