@@ -36,9 +36,16 @@ const google = new Google(
 app.use(
   '/*',
   cors({
-    origin: FRONTEND_URL,
-    allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    origin: (origin) => {
+      // Izinkan localhost untuk dev, dan domain Vercel / domain utama untuk prod
+      if (!origin) return FRONTEND_URL
+      if (origin.includes('localhost') || origin.includes('vercel.app') || origin === FRONTEND_URL) {
+         return origin
+      }
+      return FRONTEND_URL
+    },
+    allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   })
 )
