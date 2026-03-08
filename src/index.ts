@@ -520,14 +520,14 @@ app.get('/api/evaluation', authMiddleware, async (c) => {
 const userId = c.get('userId')
 
   const [incomeAgg, expenseAgg, savingAgg, otherFundAgg] = await Promise.all([
-    prisma.income.aggregate({ where: { userId }, _sum: { salary: true } }),
+    prisma.income.aggregate({ where: { userId }, _sum: { salary: true, atmBalance: true } }),
     prisma.expense.aggregate({ where: { userId }, _sum: { amount: true } }),
     prisma.saving.aggregate({ where: { userId }, _sum: { amount: true } }),
     prisma.otherFund.aggregate({ where: { userId }, _sum: { amount: true } })
   ])
 
   return c.json({
-    totalSalary: incomeAgg._sum.salary ?? 0,
+    totalSalary: (incomeAgg._sum.salary ?? 0) + (incomeAgg._sum.atmBalance ?? 0),
     totalExpense: expenseAgg._sum.amount ?? 0,
     totalSaving: savingAgg._sum.amount ?? 0,
     totalOtherFund: otherFundAgg._sum.amount ?? 0
@@ -560,7 +560,7 @@ app.get('/api/evaluation/chart', authMiddleware, async (c) => {
 
     data.push({
       month: m,
-      pendapatan: (income?.salary ?? 0),
+      pendapatan: (income?.salary ?? 0) + (income?.atmBalance ?? 0),
       pengeluaran: expenseAgg._sum.amount ?? 0,
       tabungan: savingAgg._sum.amount ?? 0,
       danaLainnya: otherFundAgg._sum.amount ?? 0
