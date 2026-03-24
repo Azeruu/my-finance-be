@@ -55,10 +55,16 @@ app.onError((err, c) => {
 // ─── Rate Limiting ─────────────────────────────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; lastReset: number }>()
 const RATE_LIMIT_WINDOW = 60 * 1000 // 1 menit
-const MAX_REQUESTS = 100 // 100 request per menit per IP
+const MAX_REQUESTS = 1000 // Tingkatkan limit untuk development
 
 app.use('*', async (c, next) => {
-  const ip = c.req.header('x-forwarded-for') || 'anonymous'
+  const ip = c.req.header('x-forwarded-for') || '127.0.0.1'
+  
+  // Skip rate limit for localhost in development
+  if (ip === '127.0.0.1' || ip === '::1' || process.env.NODE_ENV !== 'production') {
+    return await next()
+  }
+
   const now = Date.now()
   const record = rateLimitMap.get(ip) || { count: 0, lastReset: now }
 

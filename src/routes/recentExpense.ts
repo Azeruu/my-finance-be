@@ -2,8 +2,6 @@ import { Hono } from 'hono'
 import { authMiddleware } from '../middlewares/auth.ts'
 import { prisma } from '../db.ts'
 import { z } from 'zod'
-import { appendToSheet } from '../services/googleSheets.ts'
-
 const recentExpenseSchema = z.object({
   name: z.string().min(1).max(100),
   amount: z.coerce.number().min(0),
@@ -38,23 +36,6 @@ recentExpenseRoutes.post('/', async (c) => {
   await prisma.expense.create({
     data: { userId, name, amount, month, year, createdAt: d }
   })
-
-  // Ambil user untuk mendapatkan googleSheetId
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { googleSheetId: true }
-  })
-
-  // Kirim ke Google Sheets
-  // Format data: Tanggal, Nama, Jumlah, Kategori, Metode
-  const day = String(d.getDate()).padStart(2, '0')
-  const monthStr = String(d.getMonth() + 1).padStart(2, '0')
-  const yearStr = d.getFullYear()
-  const dateStr = `${day}/${monthStr}/${yearStr}`
-
-  const sheetData = [ dateStr, name, amount, category, paymentMethod ]
-  await appendToSheet(user?.googleSheetId || null, sheetData)
-
   return c.json(recentExpense)
 })
 

@@ -13,23 +13,44 @@ export const authMiddleware = async (c: any, next: any) => {
 
   try {
     const payload = await verifyToken(token, { secretKey: CLERK_SECRET_KEY })
-    const userId = payload.sub as string
-    c.set('userId', userId)
+    const clerkId = payload.sub as string
 
-    // Sync user to db if missing
-    let user = await prisma.user.findUnique({ where: { id: userId } })
+    // Sync user to db if missing or link via email if migration
+    let user = await prisma.user.findUnique({ where: { clerkId } })
+    
     if (!user) {
-      const clerkUser = await clerkClient.users.getUser(userId)
-      user = await prisma.user.create({
-        data: {
-          id: userId,
-          email: clerkUser.emailAddresses[0]?.emailAddress || '',
-          name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'User',
-          avatar: clerkUser.imageUrl,
-        }
-      })
+      // Try to find by email to link old data
+      const clerkUser = await clerkClient.users.getUser(clerkId)
+      const email = clerkUser.emailAddresses[0]?.emailAddress || ''
+      
+      user = await prisma.user.findUnique({ where: { email } })
+      
+      if (user) {
+        // Link Clerk ID to existing user
+        user = await prisma.user.update({
+          where: { email },
+          data: { 
+            clerkId,
+            avatar: clerkUser.imageUrl || user.avatar 
+          }
+        })
+        console.log(`Linked Clerk ID to existing user: ${email}`)
+      } else {
+        // Create brand new user
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            name: clerkUser.firstName ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim() : 'User',
+            avatar: clerkUser.imageUrl,
+          }
+        })
+        console.log(`Created new user for Clerk ID: ${clerkId}`)
+      }
     }
 
+    // Set internal id to context for other routes to use
+    c.set('userId', user.id)
     c.set('userEmail', user.email)
     c.set('userName', user.name)
 
