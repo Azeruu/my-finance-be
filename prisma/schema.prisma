@@ -18,9 +18,9 @@ model User {
   email         String    @unique
   name          String?
   avatar        String?
-  googleId      String    @unique
+  googleId      String?   @unique
   googleSheetId String?   // Menyimpan ID Spreadsheet unik per user
-  refreshToken  String?   // Menyimpan Google Refresh Token untuk akses jangka panjang
+  refreshToken  String?   // Obsolete, left for backwards compat
   createdAt     DateTime  @default(now())
 
   // Relations

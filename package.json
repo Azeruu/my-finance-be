@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@clerk/backend": "^1.16.2",
     "@hono/node-server": "^1.19.11",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
